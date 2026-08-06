@@ -2,14 +2,17 @@
 #include "gtest/gtest.h"
 
 #include <array>
+#include <atomic>
 #include <complex>
 #include <cstdint>
 #include <deque>
+#include <iostream>
 #include <list>
 #include <map>
 #include <memory>
 #include <optional>
 #include <set>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -484,6 +487,68 @@ FUZZ_TEST(MultiParamSuite, ManyParameters)
                  fuzztest::VectorOf(fuzztest::InRange(0, 10)).WithMaxSize(10))
     .WithSeeds({{0, "hello", 0.5, true, {1, 2, 3}},
                 {10, "world", -1.25, false, {}}});
+
+// ---------------------------------------------------------------------------
+// Custom domain: small vectors of bounded reals + dot product
+// ---------------------------------------------------------------------------
+using Vec = std::vector<double>;
+
+// A custom domain for a vector whose coordinates are all generated from a
+// bounded real domain. Min/max size are pinned so both vectors are short and
+// negative dot products are common.
+fuzztest::Domain<Vec> VecDomain() {
+  return fuzztest::VectorOf(fuzztest::InRange(-10.0, 10.0))
+      .WithMinSize(1)
+      .WithMaxSize(4);
+}
+
+std::string ToString(const Vec& v) {
+  std::ostringstream oss;
+  oss << "[";
+  for (size_t i = 0; i < v.size(); ++i) {
+    if (i != 0) oss << ", ";
+    oss << v[i];
+  }
+  oss << "]";
+  return oss.str();
+}
+
+// Logs the exact inputs fed to the property on every iteration, plus the
+// computed result. The monotonic counter makes each line greppable and lets us
+// confirm that a fresh (different) vector pair is generated on every iteration.
+std::atomic<int> g_input_log_count{0};
+
+double DotProduct(const Vec& a, const Vec& b) {
+  const size_t n = a.size() < b.size() ? a.size() : b.size();
+  double sum = 0.0;
+  for (size_t i = 0; i < n; ++i) sum += a[i] * b[i];
+  return sum;
+}
+
+// Property that deliberately FAILS whenever the dot product is negative.
+void DotProductNeverNegative(const Vec& a, const Vec& b) {
+  const double dot = DotProduct(a, b);
+  std::cout << "[iter " << g_input_log_count.fetch_add(1)
+            << "] a=" << ToString(a) << "  b=" << ToString(b)
+            << "  -> dot=" << dot << std::endl;
+  ASSERT_GE(dot, 0.0) << "Dot product must not be negative, but got " << dot;
+}
+FUZZ_TEST(DotProductSuite, DotProductNeverNegative)
+    .WithDomains(VecDomain(), VecDomain());
+
+// Same custom domain, but only checks the result is finite so the property
+// PASSES for the whole run and we can inspect a longer stream of distinct
+// generated inputs (and confirm it changes between runs).
+void DotProductLogsVaryingInputs(const Vec& a, const Vec& b) {
+  const double dot = DotProduct(a, b);
+  std::cout << "[iter " << g_input_log_count.fetch_add(1)
+            << "] a=" << ToString(a) << "  b=" << ToString(b)
+            << "  -> dot=" << dot << std::endl;
+  ASSERT_TRUE(std::isfinite(dot));
+}
+FUZZ_TEST(DotProductSuite, DotProductLogsVaryingInputs)
+    .WithDomains(VecDomain(), VecDomain())
+    .WithSeeds({{Vec{1.0, 2.0}, Vec{3.0, 4.0}}});
 
 // ---------------------------------------------------------------------------
 // unstable::ParseReproducerValue - just instantiates the template.
