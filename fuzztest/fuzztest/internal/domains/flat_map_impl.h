@@ -185,9 +185,10 @@ class FlatMapImpl
       (
           [&] {
             if (!input_values_validity.ok()) return;
+            constexpr auto idx = decltype(I)::value;
             const absl::Status s =
-                std::get<I>(input_domains_)
-                    .ValidateCorpusValue(std::get<kOffset + I>(tuple));
+                std::get<idx>(input_domains_)
+                    .ValidateCorpusValue(std::get<kOffset + idx>(tuple));
             input_values_validity =
                 Prefix(s, "Invalid value for FlatMap()-ed domain");
           }(),

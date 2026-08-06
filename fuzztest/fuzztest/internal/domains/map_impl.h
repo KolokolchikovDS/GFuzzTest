@@ -96,8 +96,9 @@ class MapImpl
       (
           [&] {
             if (!result.ok()) return;
-            const absl::Status s = std::get<I>(inner_).ValidateCorpusValue(
-                std::get<I>(corpus_value));
+            constexpr auto idx = decltype(I)::value;
+            const absl::Status s = std::get<idx>(inner_).ValidateCorpusValue(
+                std::get<idx>(corpus_value));
             result = Prefix(s, "Invalid value for Map()-ed domain");
           }(),
           ...);

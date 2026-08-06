@@ -26,6 +26,8 @@ fuzztest_setup_fuzzing_flags()
 
 add_executable(my_fuzz_test main.cpp)
 
+target_compile_options(my_fuzz_test PRIVATE /bigobj)
+
 target_include_directories(my_fuzz_test SYSTEM PRIVATE
     "${CMAKE_BINARY_DIR}/_deps/googletest-src/googletest/include"
 )
