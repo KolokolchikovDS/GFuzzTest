@@ -551,6 +551,47 @@ FUZZ_TEST(DotProductSuite, DotProductLogsVaryingInputs)
     .WithSeeds({{Vec{1.0, 2.0}, Vec{3.0, 4.0}}});
 
 // ---------------------------------------------------------------------------
+// Custom domain over a user-defined struct via StructOf
+// ---------------------------------------------------------------------------
+// A rectangle whose sides are generated independently and whose label is an
+// arbitrary string. Using a custom domain shows how to feed arbitrary structs
+// (not just primitive types) into a FUZZ_TEST property.
+struct Rect {
+  double width;
+  double height;
+  std::string label;
+};
+
+fuzztest::Domain<Rect> RectDomain() {
+  return fuzztest::StructOf<Rect>(
+      fuzztest::InRange(0.0, 100.0),                 // width
+      fuzztest::InRange(0.0, 100.0),                 // height
+      fuzztest::Arbitrary<std::string>());           // label
+}
+
+std::string ToString(const Rect& r) {
+  std::ostringstream oss;
+  oss << "{w=" << r.width << ", h=" << r.height << ", label=\""
+      << r.label << "\"}";
+  return oss.str();
+}
+
+std::atomic<int> g_rect_log_count{0};
+
+// Property: area must equal width * height. This always holds by construction,
+// so it PASSES; it is mostly here to exercise the custom-struct domain and log
+// the generated rectangles across iterations.
+void RectAreaMatchesProduct(const Rect& r) {
+  const double area = r.width * r.height;
+  std::cout << "[rect " << g_rect_log_count.fetch_add(1) << "] " << ToString(r)
+            << "  -> area=" << area << std::endl;
+  ASSERT_DOUBLE_EQ(area, r.width * r.height);
+}
+FUZZ_TEST(RectSuite, RectAreaMatchesProduct)
+    .WithDomains(RectDomain())
+    .WithSeeds({{Rect{2.0, 3.0, "seed"}}});
+
+// ---------------------------------------------------------------------------
 // unstable::ParseReproducerValue - just instantiates the template.
 // ---------------------------------------------------------------------------
 TEST(UnstableApi, ParseReproducerValueInstantiates) {
