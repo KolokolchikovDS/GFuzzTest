@@ -300,8 +300,12 @@ bool IsInBinaryFormat(absl::string_view str) {
   // Not using absl::string_view or std::memcmp because they could be
   // instrumented and using them could pollute coverage.
   return str.size() >= kBinaryHeader.size() &&
+#if defined(_MSC_VER)
+         memcmp(str.data(), kBinaryHeader.data(), kBinaryHeader.size()) == 0;
+#else
          __builtin_memcmp(str.data(), kBinaryHeader.data(),
                           kBinaryHeader.size()) == 0;
+#endif
 }
 
 }  // namespace

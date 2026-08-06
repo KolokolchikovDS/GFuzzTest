@@ -19,6 +19,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <iterator>
 #include <limits>
 #include <optional>
@@ -47,11 +48,23 @@ T SwapByteOrder(T x) {
   if constexpr (sizeof(x) == 1) {
     return x;
   } else if constexpr (sizeof(x) == 2) {
+#if defined(_MSC_VER)
+    return static_cast<T>(_byteswap_ushort(static_cast<unsigned short>(x)));
+#else
     return __builtin_bswap16(x);
+#endif
   } else if constexpr (sizeof(x) == 4) {
+#if defined(_MSC_VER)
+    return static_cast<T>(_byteswap_ulong(static_cast<unsigned long>(x)));
+#else
     return __builtin_bswap32(x);
+#endif
   } else if constexpr (sizeof(x) == 8) {
+#if defined(_MSC_VER)
+    return static_cast<T>(_byteswap_uint64(static_cast<unsigned long long>(x)));
+#else
     return __builtin_bswap64(x);
+#endif
   }
 }
 

@@ -38,6 +38,24 @@ enum class PrintMode {
   kSourceCode
 };
 
+// Detects whether the printer exposes a PrintCorpusValue member. Uses the
+// void_t detection idiom (rather than std::is_invocable on a generic lambda),
+// which MSVC handles correctly even when PrintCorpusValue is a member
+// function template.
+template <typename Printer, typename CorpusT, typename = void>
+struct has_print_corpus_value : std::false_type {};
+
+template <typename Printer, typename CorpusT>
+struct has_print_corpus_value<
+    Printer, CorpusT,
+    std::void_t<decltype(std::declval<const Printer&>().PrintCorpusValue(
+        std::declval<const CorpusT&>(), std::declval<RawSink>(),
+        std::declval<PrintMode>()))>> : std::true_type {};
+
+template <typename Printer, typename CorpusT>
+inline constexpr bool has_print_corpus_value_v =
+    has_print_corpus_value<Printer, CorpusT>::value;
+
 // Invokes PrintCorpusValue or PrintUserValue from the domain's type printer,
 // depending on what's available. It will automatically call GetValue if needed
 // for the PrintUserValue call.
@@ -46,9 +64,8 @@ void PrintValue(const Domain& domain,
                 const internal::corpus_type_t<Domain>& corpus_value,
                 RawSink out, PrintMode mode) {
   auto printer = domain.GetPrinter();
-  if constexpr (internal::Requires<decltype(printer)>(
-                    [&](auto t) -> decltype(t.PrintCorpusValue(
-                                    corpus_value, out, mode)) {})) {
+  if constexpr (has_print_corpus_value_v<decltype(printer),
+                                         internal::corpus_type_t<Domain>>) {
     printer.PrintCorpusValue(corpus_value, out, mode);
   } else {
     printer.PrintUserValue(domain.GetValue(corpus_value), out, mode);

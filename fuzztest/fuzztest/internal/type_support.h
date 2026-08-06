@@ -58,7 +58,7 @@ namespace fuzztest::internal {
 // It implements a good printer for common known types and fallbacks to an
 // "unknown" printer to prevent compile time errors.
 template <typename T>
-decltype(auto) AutodetectTypePrinter();
+auto AutodetectTypePrinter();
 
 // Returns true iff type `T` has a known printer that isn't UnknownPrinter.
 template <typename T>
@@ -94,13 +94,20 @@ constexpr bool ConsumeUnnecessaryNamespacePrefix(absl::string_view& name) {
 template <typename T>
 constexpr auto GetTypeName() {
   absl::string_view name, prefix, suffix;
+#if defined(__clang__) || defined(__GNUC__)
   name = __PRETTY_FUNCTION__;
+#else
+  name = __FUNCSIG__;
+#endif
 #if defined(__clang__)
   prefix = "GetTypeName() [T = ";
   suffix = "]";
 #elif defined(__GNUC__)
   prefix = "GetTypeName() [with T = ";
   suffix = "]";
+#elif defined(_MSC_VER)
+  prefix = "GetTypeName<";
+  suffix = ">(void)";
 #else
   return "<TYPE>"
 #endif
@@ -611,7 +618,8 @@ struct AutodetectAggregatePrinter {
     const auto print_one = [&](auto I) {
       if (I > 0) absl::Format(out, ", ");
       AutodetectTypePrinter<
-          std::remove_reference_t<std::tuple_element_t<I, decltype(bound)>>>()
+          std::remove_reference_t<std::tuple_element_t<
+              I, std::remove_reference_t<decltype(bound)>>>>()
           .PrintUserValue(std::get<I>(bound), out, mode);
     };
     absl::Format(out, "%s{", GetTypeNameIfUserDefined<T>());
@@ -656,7 +664,7 @@ struct UnknownPrinter {
 };
 
 template <typename T>
-decltype(auto) AutodetectTypePrinter() {
+auto AutodetectTypePrinter() {
   // The order of these checks somewhat matters. Most of the concrete types have
   // AbslStringify, so they should come first not to be captured by the custom
   // printer case. The aggregate case comes after the custom case so that the

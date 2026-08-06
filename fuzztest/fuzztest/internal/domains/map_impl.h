@@ -171,14 +171,16 @@ class ReversibleMapImpl
     absl::Status result = absl::OkStatus();
     ApplyIndex<sizeof...(Inner)>([&](auto... I) {
       (
-          [&] {
+          [&](auto idx) {
             if (!result.ok()) return;
-            const absl::Status s = std::get<I>(inner_).ValidateCorpusValue(
-                std::get<I>(corpus_value));
+            constexpr auto kIdx = decltype(idx)::value;
+            const absl::Status s = std::get<kIdx>(inner_).ValidateCorpusValue(
+                std::get<kIdx>(corpus_value));
             if (!s.ok()) {
-              result = Prefix(s, "Invalid value for ReversibleMap()-ed domain");
+              result =
+                  Prefix(s, "Invalid value for ReversibleMap()-ed domain");
             }
-          }(),
+          }(I),
           ...);
     });
     return result;

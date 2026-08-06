@@ -110,29 +110,31 @@ class InitTraversalContext : public TraversalContext<DomainType> {
 
   template <typename OtherDomain>
   static InitTraversalContext Passthrough(
-      const TraversalContext<OtherDomain>& other) {
+      const ::fuzztest::domain_implementor::TraversalContext<OtherDomain>&
+          other) {
     return InitTraversalContext(other.state(), PassthroughTag{});
   }
 
   explicit InitTraversalContext(TraversalState& state)
-      : TraversalContext<DomainType>{state} {
+      : ::fuzztest::domain_implementor::TraversalContext<DomainType>{state} {
     Decrement();
   }
 
   template <typename OtherDomain>
   InitTraversalContext(const InitTraversalContext<OtherDomain>& other)
-      : TraversalContext<DomainType>{other} {
+      : ::fuzztest::domain_implementor::TraversalContext<DomainType>{other} {
     Decrement();
   }
 
   template <typename OtherDomain>
-  InitTraversalContext(const TraversalContext<OtherDomain>& other)
-      : TraversalContext<DomainType>{other} {
+  InitTraversalContext(const ::fuzztest::domain_implementor::TraversalContext<
+                           OtherDomain>& other)
+      : ::fuzztest::domain_implementor::TraversalContext<DomainType>{other} {
     Decrement();
   }
 
   InitTraversalContext(const InitTraversalContext& other)
-      : TraversalContext<DomainType>{other} {
+      : ::fuzztest::domain_implementor::TraversalContext<DomainType>{other} {
     Decrement();
   }
 

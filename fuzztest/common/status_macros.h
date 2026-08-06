@@ -32,8 +32,13 @@
 namespace fuzztest::internal {
 template <typename T>
 decltype(auto) ValueOrDie(T&& value ABSL_ATTRIBUTE_LIFETIME_BOUND,
+#if defined(_MSC_VER)
+                          std::uint_least32_t line = __LINE__,
+                          const char* file_name = __FILE__) {
+#else
                           std::uint_least32_t line = __builtin_LINE(),
                           const char* file_name = __builtin_FILE()) {
+#endif
   if (ABSL_PREDICT_FALSE(!value.ok())) {
     FUZZTEST_LOG(FATAL) << file_name << ":" << line
                         << ": ValueOrDie on non-OK status: " << value.status();

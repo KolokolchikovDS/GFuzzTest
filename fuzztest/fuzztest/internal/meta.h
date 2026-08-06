@@ -59,12 +59,17 @@ constexpr auto ApplyIndex(F f) {
 // Requires `0 <= i && i < Max`
 // This function raises a runtime int into a static int. Useful for dealing with
 // tuples, variants, etc.
+template <typename F, size_t I>
+decltype(auto) SwitchInvoke(F& f) {
+  return std::move(f)(std::integral_constant<size_t, I>{});
+}
+
 template <size_t Max, typename F>
 decltype(auto) Switch(size_t i, F f) {
   using Call = decltype(f(std::integral_constant<size_t, 0>())) (*)(F&);
   return ApplyIndex<Max>([](auto... I) {
     static constexpr Call kFuncs[] = {
-        [](F& f) { return std::move(f)(decltype(I){}); }...};
+        &SwitchInvoke<F, decltype(I)::value>...};
     return kFuncs;
   })[i](f);
 }

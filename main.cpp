@@ -18,4 +18,4 @@ void MyFuzzTest(int input)
 }
 
 FUZZ_TEST(MyTestSuite, MyFuzzTest)
-.WithDomains(fuzztest::InRange(-100, -1));
+.WithDomains(fuzztest::InRange(-50, 50));

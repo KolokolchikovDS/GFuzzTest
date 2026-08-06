@@ -27,6 +27,13 @@
 #include <malloc.h>  // For _aligned_malloc / _aligned_free.
 #endif
 
+#if defined(_MSC_VER)
+#include <intrin.h>  // For _ReturnAddress / __popcnt64.
+
+#define __builtin_return_address(x) _ReturnAddress()
+#define __builtin_popcount(x) __popcnt64(static_cast<unsigned __int64>(x))
+#endif
+
 #include "absl/base/attributes.h"
 #include "absl/strings/str_format.h"
 #include "absl/types/span.h"
@@ -48,7 +55,16 @@ namespace {
 // functions (like `absl::bit_width`) in order to avoid having potentially
 // instrumented code in the callback.
 constexpr uint8_t BitWidth(uint8_t x) {
+#if defined(_MSC_VER)
+  uint8_t width = 0;
+  while (x != 0) {
+    ++width;
+    x >>= 1;
+  }
+  return width;
+#else
   return x == 0 ? 0 : (8 - __builtin_clz(x));
+#endif
 }
 
 }  // namespace
