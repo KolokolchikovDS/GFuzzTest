@@ -25,6 +25,17 @@ if(MSVC OR (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest" CACHE STRING "CXX flags" FORCE)
 endif()
 
+# clang-cl 22 reports __cplusplus=202400 under /std:c++latest, which turns on
+# MSVC STL C++23 paths (_HAS_CXX23) that clang-cl 22 cannot compile (e.g.
+# <optional> std::invoke). MSVC 14.38's /std:c++latest is C++20 (_MSVC_LANG
+# 202004, _HAS_CXX23=0), so pin the STL to the C++20 code paths to match.
+if(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-D_HAS_CXX23=0)
+  # On Windows clang-cl, googletest's POSIX detection is off and gtest tries to
+  # #include <pthread.h>; disable pthreads so gtest/gmock build cleanly.
+  set(gtest_disable_pthreads ON CACHE BOOL "" FORCE)
+endif()
+
 add_subdirectory(fuzztest)
 
 enable_testing()
