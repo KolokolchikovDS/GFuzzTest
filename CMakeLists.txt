@@ -72,3 +72,29 @@ target_link_libraries(my_fuzz_test PRIVATE
 
 
 gtest_discover_tests(my_fuzz_test)
+
+# clang-cl 22's dynamic ASan runtime requires the release CRT (/MD) and cannot
+# be combined with /MDd. Absl unconditionally sets CMAKE_MSVC_RUNTIME_LIBRARY
+# to the Debug runtime in a Debug build, so force /MD on every target after all
+# subdirectories are added (clang-cl uses the last /M* flag).
+if(WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  macro(_collect_all_targets _dir _acc)
+    get_property(_tg DIRECTORY "${_dir}" PROPERTY BUILDSYSTEM_TARGETS)
+    list(APPEND ${_acc} ${_tg})
+    get_property(_sd DIRECTORY "${_dir}" PROPERTY SUBDIRECTORIES)
+    foreach(_s IN LISTS _sd)
+      _collect_all_targets("${_s}" ${_acc})
+    endforeach()
+  endmacro()
+  _collect_all_targets("${CMAKE_SOURCE_DIR}" _all_targets)
+  foreach(_t IN LISTS _all_targets)
+    if(TARGET "${_t}")
+      get_target_property(_tt "${_t}" TYPE)
+      if(_tt STREQUAL "STATIC_LIBRARY" OR _tt STREQUAL "SHARED_LIBRARY" OR
+         _tt STREQUAL "EXECUTABLE" OR _tt STREQUAL "MODULE_LIBRARY" OR
+         _tt STREQUAL "OBJECT_LIBRARY")
+        target_compile_options("${_t}" PRIVATE /MD)
+      endif()
+    endif()
+  endforeach()
+endif()

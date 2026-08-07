@@ -58,7 +58,7 @@ cmake --build build-clang-md --target my_fuzz_test -j 8
 Для обоих режимов собраны самодостаточные пакеты «заголовки + консолидированная статическая библиотека» (один `fuzztest.lib`, склеенный из всех отдельных либов через `lib.exe`):
 
 - `package/msvc/fuzztest/` — сборка **MSVC / unit test mode** (C++23, `/MD`): `include/`, `lib/Debug/fuzztest.lib`, `lib/Release/fuzztest.lib`.
-- `package/clang/fuzztest/` — сборка **clang-cl / libFuzzer compatibility mode** (C++23, `/MD`): `include/`, `lib/fuzztest.lib` (с ASan/libFuzzer-инструментацией).
+- `package/clang/fuzztest/` — сборка **clang-cl / libFuzzer compatibility mode** (C++23, `/MD`): `include/`, `lib/Debug/fuzztest.lib`, `lib/Release/fuzztest.lib` (с ASan/libFuzzer-инструментацией; `lib/Release` — сборка RelWithDebInfo, как исходно).
 
 Проверка работоспособности пакетов в тестовых проектах (`tests.cpp` линкуется только против пакета — без `fuzztest/` и `_deps/`):
 

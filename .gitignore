@@ -85,6 +85,9 @@ verify-pkg/build/
 verify-pkg/build2/
 verify-pkg/build3/
 verify-pkg-clang/build/
+verify-pkg-clang/build-rel/
+verify-pkg-clang/build-dbg/
+build-clang-cpp23-debug/
 build-cpp23/
 build-clang-cpp23/
 build-clang-libfuzzer/
@@ -99,4 +102,7 @@ llvm-22/
 !package/msvc/fuzztest/lib/Debug/*.lib
 !package/msvc/fuzztest/lib/Release/*.lib
 !package/clang/fuzztest/lib/
-!package/clang/fuzztest/lib/*.lib
+!package/clang/fuzztest/lib/Debug/
+!package/clang/fuzztest/lib/Release/
+!package/clang/fuzztest/lib/Debug/*.lib
+!package/clang/fuzztest/lib/Release/*.lib

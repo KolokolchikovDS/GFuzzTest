@@ -28,8 +28,14 @@ add_executable(verify_tests tests.cpp)
 
 target_include_directories(verify_tests PRIVATE "${FUZZTEST_PKG}/include")
 
-# Link the single consolidated static library.
-target_link_libraries(verify_tests PRIVATE "${FUZZTEST_PKG}/lib/fuzztest.lib")
+# Link the single consolidated static library. Pick by configuration.
+# The clang "Release" package lib is a RelWithDebInfo build (as originally
+# built); map both Release and RelWithDebInfo to it.
+target_link_libraries(verify_tests PRIVATE
+    "$<$<CONFIG:Debug>:${FUZZTEST_PKG}/lib/Debug/fuzztest.lib>"
+    "$<$<CONFIG:Release>:${FUZZTEST_PKG}/lib/Release/fuzztest.lib>"
+    "$<$<CONFIG:RelWithDebInfo>:${FUZZTEST_PKG}/lib/Release/fuzztest.lib>"
+)
 
 # Link the /MD libFuzzer runtime and the dynamic ASan runtime (same as
 # fuzztest_link_windows_sanitizer_runtime).
