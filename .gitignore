@@ -84,15 +84,19 @@ build2/
 verify-pkg/build/
 verify-pkg/build2/
 verify-pkg/build3/
+verify-pkg-clang/build/
 build-cpp23/
+build-clang-cpp23/
 build-clang-libfuzzer/
 build-clang-md/
 build-libfuzzer-md/
 llvm-22/
 
 # Keep packaged static libs (tracked via git-lfs)
-!package/fuzztest/lib/
-!package/fuzztest/lib/Debug/
-!package/fuzztest/lib/Release/
-!package/fuzztest/lib/Debug/*.lib
-!package/fuzztest/lib/Release/*.lib
+!package/msvc/fuzztest/lib/
+!package/msvc/fuzztest/lib/Debug/
+!package/msvc/fuzztest/lib/Release/
+!package/msvc/fuzztest/lib/Debug/*.lib
+!package/msvc/fuzztest/lib/Release/*.lib
+!package/clang/fuzztest/lib/
+!package/clang/fuzztest/lib/*.lib

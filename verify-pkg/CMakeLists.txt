@@ -11,7 +11,7 @@ if(MSVC)
 endif()
 
 # Absolute path to the packaged fuzztest dependency.
-set(FUZZTEST_PKG "D:/GFuzzTest/package/fuzztest")
+set(FUZZTEST_PKG "D:/GFuzzTest/package/msvc/fuzztest")
 
 add_executable(verify_tests tests.cpp)
 

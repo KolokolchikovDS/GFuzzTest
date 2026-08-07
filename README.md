@@ -51,6 +51,31 @@ cmake --build build-clang-md --target my_fuzz_test -j 8
 
 > `clang-cl-libfuzzer-toolchain.cmake` использует `/MD` (динамический CRT), связывает динамический ASan-рантайм из LLVM 22 и рантайм libFuzzer, пересобранный с `/MD`. `third_party/libfuzzer/CMakeLists.txt` собирает libFuzzer с `/MD` и содержит пропатченные небезопасные weak-хуки (`strstr`/`strcmp`), которые на Windows делали `strlen` по не-NUL-terminated буферам и давали ложные ASan `global-buffer-overflow`.
 
+> **C++23:** обе сборки используют `CMAKE_CXX_STANDARD 23` (`/std:c++latest`). MSVC 14.38 в этом режиме даёт C++20 (`_HAS_CXX23=0`); для clang-cl 22 аналогично принудительно задаётся `-D_HAS_CXX23=0`, чтобы MSVC STL не включал недоступные clang-cl 22 пути C++23.
+
+## Упаковка (package: include + lib)
+
+Для обоих режимов собраны самодостаточные пакеты «заголовки + консолидированная статическая библиотека» (один `fuzztest.lib`, склеенный из всех отдельных либов через `lib.exe`):
+
+- `package/msvc/fuzztest/` — сборка **MSVC / unit test mode** (C++23, `/MD`): `include/`, `lib/Debug/fuzztest.lib`, `lib/Release/fuzztest.lib`.
+- `package/clang/fuzztest/` — сборка **clang-cl / libFuzzer compatibility mode** (C++23, `/MD`): `include/`, `lib/fuzztest.lib` (с ASan/libFuzzer-инструментацией).
+
+Проверка работоспособности пакетов в тестовых проектах (`tests.cpp` линкуется только против пакета — без `fuzztest/` и `_deps/`):
+
+```sh
+# MSVC-пакет
+cmake -S verify-pkg -B verify-pkg/build3 -G "Visual Studio 17 2022" -A x64 -DCMAKE_CXX_STANDARD=23
+cmake --build verify-pkg/build3 --config Release
+verify-pkg\build3\Release\verify_tests.exe
+
+# clang-пакет (LLVM 22 bin + vcvars64 в PATH)
+cmake -S verify-pkg-clang -B verify-pkg-clang/build -G Ninja `
+  -DCMAKE_TOOLCHAIN_FILE=clang-cl-libfuzzer-toolchain.cmake `
+  -DLIBFUZZER_NO_MAIN_LIBRARY=D:/GFuzzTest/build-libfuzzer-md/clang_rt.fuzzer_no_main-md-x86_64.lib
+cmake --build verify-pkg-clang/build -j 8
+verify-pkg-clang\build\verify_tests.exe --gtest_filter=UnstableApi.ParseReproducerValueInstantiates
+```
+
 ## Запуск
 
 ### Unit test mode (MSVC)
