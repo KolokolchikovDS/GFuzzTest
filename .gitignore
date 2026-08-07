@@ -83,6 +83,8 @@ build-1444/
 build2/
 verify-pkg/build/
 verify-pkg/build2/
+verify-pkg/build3/
+build-cpp23/
 
 # Keep packaged static libs (tracked via git-lfs)
 !package/fuzztest/lib/

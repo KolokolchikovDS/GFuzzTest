@@ -1,8 +1,14 @@
 cmake_minimum_required(VERSION 3.19)
 project(verify_pkg CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# MSVC 14.38 only exposes C++23 via /std:c++latest; the packaged fuzztest.lib
+# was compiled with it, so the consumer must match for ABI consistency.
+if(MSVC)
+  add_compile_options(/std:c++latest)
+endif()
 
 # Absolute path to the packaged fuzztest dependency.
 set(FUZZTEST_PKG "D:/GFuzzTest/package/fuzztest")
