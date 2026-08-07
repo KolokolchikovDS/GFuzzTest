@@ -743,7 +743,7 @@ constexpr std::optional<int> DetectBindableFieldCount() {
   // Detect if the first initialization field is a base class.
   constexpr auto no_base_impl = [](auto... I)
       -> decltype(T{AnythingButBaseOf<T>{}, (I, AnythingBut<T>{})...}) {};
-  constexpr auto no_base = [](auto... I) {
+  constexpr auto no_base = [no_base_impl = no_base_impl](auto... I) {
     return std::is_invocable_v<decltype(no_base_impl), decltype(I)...>;
   };
 
@@ -757,7 +757,7 @@ constexpr std::optional<int> DetectBindableFieldCount() {
   constexpr auto no_two_bases_impl =
       [](auto... I) -> decltype(T{AnythingBut<T>{}, AnythingButBaseOf<T>{},
                                   (I, AnythingBut<T>{})...}) {};
-  constexpr auto no_two_bases = [](auto... I) {
+  constexpr auto no_two_bases = [no_two_bases_impl = no_two_bases_impl](auto... I) {
     return std::is_invocable_v<decltype(no_two_bases_impl), decltype(I)...>;
   };
 

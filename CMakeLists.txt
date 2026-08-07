@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.19)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(GTEST_FUZZING CXX)
@@ -16,6 +16,15 @@ endif()
 
 add_compile_options(/wd4267 /wd4244 /wd4100 /wd4996 /wd4324 /wd4127)
 add_compile_options(/WX-)
+
+# MSVC 14.38 does not support /std:c++23; C++23 is only available via
+# /std:c++latest. Force it globally (also as a cache CMAKE_CXX_FLAGS so
+# Abseil's configure-time standard detection sees C++20 and does not pin
+# cxx_std_17).
+if(MSVC)
+  add_compile_options(/std:c++latest)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest" CACHE STRING "CXX flags" FORCE)
+endif()
 
 add_subdirectory(fuzztest)
 
