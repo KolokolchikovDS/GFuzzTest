@@ -4,7 +4,9 @@
 
 ## Сборка
 
-Собирается на **Windows** компилятором **MSVC** в **unit test mode** (обычные `FUZZ_TEST`-свойства, без centipede/libFuzzer).
+Собирается на **Windows** двумя способами: **MSVC** в *unit test mode* (обычные `FUZZ_TEST`-свойства, без centipede/libFuzzer) и **Clang (clang-cl)** в *compatibility mode* (FuzzTest + **libFuzzer** + AddressSanitizer). Обе сборки используют **C++23** и динамический CRT **`/MD`**.
+
+### 1. MSVC / unit test mode
 
 ```sh
 cmake -S . -B build
@@ -13,7 +15,45 @@ cmake --build build --target my_fuzz_test --config Release
 
 Исполняемый файл: `build/Release/my_fuzz_test.exe`.
 
+### 2. Clang (clang-cl) / libFuzzer compatibility mode, **dynamic CRT `/MD`**
+
+FuzzTest работает как драйвер поверх libFuzzer. Используется **LLVM 22.1.8** (последний стабильный), потому что его динамический ASan-рантайм работает на Windows, а у Clang 19 из VS2022 dynamic ASan падает на старте (`interception_win: unhandled instruction`). STL — от VS 2022.
+
+Эталонные артефакты уже собраны:
+- `dist/lib/` — все собранные статические библиотеки (`/MD`): FuzzTest, abseil, googletest, re2 и рантайм libFuzzer `clang_rt.fuzzer_no_main-md-x86_64.lib`.
+- `dist/bin/my_fuzz_test.exe` + `clang_rt.asan_dynamic-x86_64.dll`.
+- Исходники libFuzzer — в `third_party/libfuzzer/` (LLVM 22.1.8, пропатчены небезопасные `strstr`/`strcmp`-хуки).
+
+#### Шаг 1. Сборка рантайма libFuzzer с `/MD`
+
+```sh
+# LLVM 22 bin и каталог rc.exe Windows Kits должны быть в PATH
+set PATH=D:\GFuzzTest\llvm-22\clang+llvm-22.1.8-x86_64-pc-windows-msvc\bin;%PATH%
+cmake -S third_party/libfuzzer -B build-libfuzzer-md -G Ninja -DCMAKE_CXX_COMPILER=clang-cl -DCMAKE_BUILD_TYPE=Release
+cmake --build build-libfuzzer-md -j 8
+# -> build-libfuzzer-md/clang_rt.fuzzer_no_main-md-x86_64.lib
+```
+
+#### Шаг 2. Сборка FuzzTest (`/MD`)
+
+```sh
+# из VS2022 x64 Developer PowerShell, LLVM 22 bin и rc.exe в PATH
+cmake -S . -B build-clang-md -G Ninja `
+  -DCMAKE_TOOLCHAIN_FILE=clang-cl-libfuzzer-toolchain.cmake `
+  -DFUZZTEST_COMPATIBILITY_MODE=libfuzzer `
+  -DLIBFUZZER_NO_MAIN_LIBRARY=D:/GFuzzTest/build-libfuzzer-md/clang_rt.fuzzer_no_main-md-x86_64.lib `
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo
+
+cmake --build build-clang-md --target my_fuzz_test -j 8
+```
+
+Исполняемый файл: `build-clang-md/my_fuzz_test.exe` (рядом копируется `clang_rt.asan_dynamic-x86_64.dll`).
+
+> `clang-cl-libfuzzer-toolchain.cmake` использует `/MD` (динамический CRT), связывает динамический ASan-рантайм из LLVM 22 и рантайм libFuzzer, пересобранный с `/MD`. `third_party/libfuzzer/CMakeLists.txt` собирает libFuzzer с `/MD` и содержит пропатченные небезопасные weak-хуки (`strstr`/`strcmp`), которые на Windows делали `strlen` по не-NUL-terminated буферам и давали ложные ASan `global-buffer-overflow`.
+
 ## Запуск
+
+### Unit test mode (MSVC)
 
 Фаззинг управляется переменными окружения:
 
@@ -26,3 +66,23 @@ build\Release\my_fuzz_test.exe --gtest_filter=DotProductSuite.DotProductLogsVary
 ```
 
 Управление работой фаззинг-раннера — в `fuzztest/fuzztest/internal/runtime.cc`.
+
+### Compatibility mode (clang-cl + libFuzzer)
+
+Фаззинг запускается через `--fuzz=<Suite>.<Test>`; параметры libFuzzer передаются после `--`. Без ограничений фаззинг идёт бесконечно, поэтому задайте `-runs` или `-max_total_time`.
+
+```sh
+# найти контрпример в намеренно падающем свойстве
+build-clang-md\my_fuzz_test.exe --fuzz=DotProductSuite.DotProductNeverNegative -- -runs=1000
+
+# прогон без падений, ограниченный по времени
+build-clang-md\my_fuzz_test.exe --fuzz=ArbitrarySuite.IntDoesNotCrash -- -max_total_time=30
+```
+
+Обычные unit-тесты (`TEST`) работают как обычно, например:
+
+```sh
+build-clang-md\my_fuzz_test.exe --gtest_filter=UnstableApi.ParseReproducerValueInstantiates
+```
+
+> `gtest_discover_tests` регистрирует `FUZZ_TEST`-ы как обычные тесты, поэтому `ctest` будет запускать их и фаззить без лимита — для bounded-прогонов используйте флаги libFuzzer, как выше.

@@ -16,7 +16,12 @@ macro(fuzztest_setup_fuzzing_flags)
   if (FUZZTEST_FUZZING_MODE OR (FUZZTEST_COMPATIBILITY_MODE STREQUAL "libfuzzer"))
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -UNDEBUG -fsanitize=address")
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -UNDEBUG -fsanitize=address")
-    SET(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+    # On Windows (clang-cl) the linker is lld-link, which does not understand
+    # the -fsanitize=address linker flag. The ASan runtime is linked manually
+    # (see CompatibilityModeLinkLibFuzzer.cmake), so skip it here.
+    if (NOT (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
+      SET(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+    endif ()
   endif ()
   if (FUZZTEST_COMPATIBILITY_MODE STREQUAL "libfuzzer")
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=fuzzer-no-link -DFUZZTEST_COMPATIBILITY_MODE")

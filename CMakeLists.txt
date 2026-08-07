@@ -17,11 +17,10 @@ endif()
 add_compile_options(/wd4267 /wd4244 /wd4100 /wd4996 /wd4324 /wd4127)
 add_compile_options(/WX-)
 
-# MSVC 14.38 does not support /std:c++23; C++23 is only available via
-# /std:c++latest. Force it globally (also as a cache CMAKE_CXX_FLAGS so
-# Abseil's configure-time standard detection sees C++20 and does not pin
-# cxx_std_17).
-if(MSVC)
+# MSVC 14.38 (and clang-cl) only expose C++23 via /std:c++latest. Force it
+# globally (also as a cache CMAKE_CXX_FLAGS so Abseil's configure-time standard
+# detection sees C++20 and does not pin cxx_std_17).
+if(MSVC OR (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
   add_compile_options(/std:c++latest)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++latest" CACHE STRING "CXX flags" FORCE)
 endif()
@@ -42,6 +41,13 @@ target_include_directories(my_fuzz_test SYSTEM PRIVATE
 )
 
 link_fuzztest(my_fuzz_test)
+
+# In libFuzzer compatibility mode on Windows (clang-cl), lld-link does not
+# understand sanitizer flags, so link the /MD libFuzzer runtime and the dynamic
+# ASan runtime explicitly. (Function is provided by the fuzztest subdirectory.)
+if (FUZZTEST_COMPATIBILITY_MODE STREQUAL "libfuzzer" AND WIN32)
+  fuzztest_link_windows_sanitizer_runtime(my_fuzz_test)
+endif()
 
 target_link_libraries(my_fuzz_test PRIVATE 
     fuzztest::fuzztest
