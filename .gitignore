@@ -106,3 +106,5 @@ llvm-22/
 !package/clang/fuzztest/lib/Release/
 !package/clang/fuzztest/lib/Debug/*.lib
 !package/clang/fuzztest/lib/Release/*.lib
+!package/clang/fuzztest/lib/clang-md/
+!package/clang/fuzztest/lib/clang-md/*.lib
