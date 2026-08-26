@@ -95,18 +95,34 @@ if exist "%~dp0third_party\deps\googletest\googletest\include" xcopy /E /I /Y /Q
 if exist "%~dp0third_party\deps\googletest\googlemock\include" xcopy /E /I /Y /Q "%~dp0third_party\deps\googletest\googlemock\include\*" "%INCDIR%\" >nul
 if exist "%~dp0third_party\deps\re2\re2" xcopy /E /I /Y /Q "%~dp0third_party\deps\re2\re2" "%INCDIR%\re2" >nul
 
+rem ---- 6. Merge all fuzztest + abseil + gtest + re2 into one fuzztest.lib ------
+rem So an external project only links a SINGLE library (plus the ASan/thunk libs).
+rem A response file is used to avoid the cmd.exe ~8K command-line length limit.
+echo Merging libraries into fuzztest.lib...
+set "LLVM_LIB="
+if defined CLANG_DIR if exist "%CLANG_DIR%\llvm-lib.exe" set "LLVM_LIB=%CLANG_DIR%\llvm-lib.exe"
+if not defined LLVM_LIB if defined ASAN_LIBDIR if exist "%ASAN_LIBDIR%\..\..\..\..\bin\llvm-lib.exe" set "LLVM_LIB=%ASAN_LIBDIR%\..\..\..\..\bin\llvm-lib.exe"
+if defined LLVM_LIB (
+    call "%~dp0_make_fuzztest_lib.bat"
+) else (
+    echo WARNING: llvm-lib not found; skipping merge. Use @%RSP% for linking.
+)
+
 echo.
 echo ============================================================
 echo  Done. Staged FuzzTest artifacts under:
 echo    %OUT%
 echo.
-echo  Headers : -I%INCDIR%
-echo  Libs    : @%RSP%   ^(response file with ALL libs^)
-echo  Runtime : copy %BINDIR%\clang_rt.asan_dynamic-x86_64.dll
-echo             next to your final .exe
+echo  Headers   : -I%INCDIR%
+echo  Combined  : %LIBDIR%\fuzztest.lib  ^(all fuzztest+abseil+gtest+re2, 1 lib^)
+echo  All libs  : @%RSP%   ^(response file, alternative to fuzztest.lib^)
+echo  Runtime   : copy %BINDIR%\clang_rt.asan_dynamic-x86_64.dll
+echo               next to your final .exe
 echo.
-echo  Link (see README for full command):
-echo    clang-cl my.obj @%RSP% ^
+echo  Link with the combined lib:
+echo    lld-link my.obj %LIBDIR%\fuzztest.lib ^
+echo      %LIBDIR%\clang_rt.asan_dynamic-x86_64.lib ^
+echo      %LIBDIR%\clang_rt.fuzzer_no_main-md-x86_64.lib ^
 echo      /WHOLEARCHIVE:%LIBDIR%\clang_rt.asan_dynamic_runtime_thunk-x86_64.lib ^
 echo      /include:__asan_seh_interceptor /out:my.exe
 echo ============================================================
