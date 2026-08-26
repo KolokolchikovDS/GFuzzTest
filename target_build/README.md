@@ -63,6 +63,12 @@ target_build\build\clang_rt.asan_dynamic-x86_64.dll   (копируется POST
 | `ASAN_OPTIONS` | `detect_odr_violation=0:intercept_strlen=0` | Отключает известные ложные срабатывания ASan (см. ниже) |
 | `LIBFUZZER_NO_MAIN_LIBRARY` | `third_party\libfuzzer\clang_rt.fuzzer_no_main-md-x86_64.lib` | Рантайм libFuzzer |
 
+> **Смена компилятора / настройки:** `configure.bat` ставит
+> `CMAKE_SUPPRESS_REGENERATION=ON`, чтобы Ninja не крутил бесконечный цикл
+> «Re-running CMake» при сборке. Из-за этого после изменения `CMakeLists.txt`
+> или смены `CLANG_DIR` нужно **заново выполнить `configure.bat`** (а при смене
+> компилятора лучше удалить `target_build\build` и пересобрать начисто).
+
 ## Почему эти ASAN_OPTIONS по умолчанию
 
 Связка clang-ASan (динамический рантайм) на Windows + этот набор зависимостей даёт
