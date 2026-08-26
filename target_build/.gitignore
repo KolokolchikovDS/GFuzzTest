@@ -1,0 +1,4 @@
+# Build outputs (never commit)
+build/
+build_vs/
+*.log
