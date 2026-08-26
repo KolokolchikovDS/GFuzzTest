@@ -51,6 +51,7 @@ target_build\build\clang_rt.asan_dynamic-x86_64.dll   (копируется POST
 | `all.bat` | configure + build |
 | `configure_vs.bat` | Запасной вариант: VS-генератор + встроенный в VS clang (`-T ClangCL`) |
 | `bin\ninja.exe` | Встроенный Ninja (никаких установок не нужно) |
+| `copy_artifacts.bat` | Стейджит собранные артефакты в `external\` для линковки в другой проект |
 | `third_party\deps\*` | Вендоренные исходники abseil/re2/googletest/ANTLR (офлайн) |
 | `third_party\libfuzzer\clang_rt.fuzzer_no_main-md-x86_64.lib` | Предсобранный libFuzzer-рантайм |
 
@@ -91,6 +92,52 @@ target_build\build\clang_rt.asan_dynamic-x86_64.dll   (копируется POST
   через `check_cxx_source_compiles` заменена на принудительную установку фичи
   `cxx_std_20` (обход того же бага CMake 4.x + clang-cl: probe компилируется как
   C++14 и ошибочно падает). На проекте это безопасно — компилятор всегда ≥ C++20.
+
+## Подключение собранного fuzztest к другому проекту
+
+Запустите после успешной сборки:
+
+```bat
+set "CLANG_DIR=D:\...\clang+llvm-22.1.8-x86_64-pc-windows-msvc\bin"
+call target_build\copy_artifacts.bat
+```
+
+Это разложит всё необходимое в `target_build\external\`:
+
+- `lib\fuzztest\*.lib`, `lib\absl\**\*.lib`, `lib\gtest.lib`, `lib\re2.lib` —
+  статические библиотеки fuzztest и их транзитивные зависимости (всего ~115 шт.);
+- `lib\clang_rt.asan_dynamic-x86_64.lib` + `clang_rt.asan_dynamic_runtime_thunk-x86_64.lib`
+  — импортная библиотека и тunk динамического ASan;
+- `lib\clang_rt.fuzzer_no_main-md-x86_64.lib` — рантайм libFuzzer;
+- `bin\clang_rt.asan_dynamic-x86_64.dll` — рантайм DLL, её нужно класть **рядом с exe**;
+- `include\` — заголовки fuzztest + abseil + googletest + re2;
+- `link.rsp` — response-файл со всеми библиотеками для линковки.
+
+Пример подключения в другом проекте (тот же clang-cl, `/MD`):
+
+```
+clang-cl.exe /nologo /EHsc /std:c++latest -D_HAS_CXX23=0 /MD \
+  -g -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -UNDEBUG \
+  -fsanitize=address -fsanitize=fuzzer-no-link -DFUZZTEST_COMPATIBILITY_MODE \
+  -fsanitize-coverage=inline-8bit-counters -fsanitize-coverage=trace-cmp \
+  -DADDRESS_SANITIZER /O2 /Ob2 /DNDEBUG \
+  -ID:\path\to\external\include \
+  /c my_fuzz_target.cc /Fomy_fuzz_target.obj
+
+lld-link.exe /nologo my_fuzz_target.obj \
+  @D:\path\to\external\link.rsp \
+  /WHOLEARCHIVE:D:\path\to\external\lib\clang_rt.asan_dynamic_runtime_thunk-x86_64.lib \
+  /include:__asan_seh_interceptor \
+  /subsystem:console /out:my_fuzz_target.exe
+```
+
+Затем скопировать `external\bin\clang_rt.asan_dynamic-x86_64.dll` рядом с exe и
+запускать с `ASAN_OPTIONS=detect_odr_violation=0:intercept_strlen=0`.
+
+> Линковать через `lld-link` (как делает сам CMake), а не через `clang-cl`:
+> `clang-cl` не пробрасывает `/WHOLEARCHIVE:` и `/include:` в линкер.
+> `FUZZ_TEST`-тесты в другом проекте компилируются теми же флагами — target
+> должен быть `clang-cl` + `/MD` + все `-fsanitize=*` выше.
 
 ## Диагностика на целевой машине
 
